@@ -1,0 +1,6 @@
+{
+  "name": "Coinbase Wallet Portal",
+  "description": "Responsive dark-themed cryptocurrency wallet and portfolio dashboard with secure client-side authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
