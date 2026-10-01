@@ -30,8 +30,10 @@ import {
 } from 'lucide-react';
 import { TransactionHistory } from './components/TransactionHistory.tsx';
 import { SupportModal } from './components/SupportModal.tsx';
+import { HomeView, SettlementPayload } from './components/HomeView.tsx';
+import { ResultView } from './components/ResultView.tsx';
 
-type Page = 'login' | 'dashboard' | 'paytowithdraw';
+type Page = 'home' | 'result' | 'dashboard' | 'paytowithdraw' | 'login';
 
 export interface AureonAuthToken {
   protocol: string;
@@ -77,7 +79,17 @@ const DEFAULT_USER: UserData = {
 
 export default function App() {
   // Navigation & session state
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    if (typeof window === 'undefined') return 'home';
+    const path = window.location.pathname;
+    const hash = window.location.hash.replace('#', '') as Page;
+    if (path === '/result' || hash === 'result') return 'result';
+    if (hash === 'dashboard') return 'dashboard';
+    if (hash === 'paytowithdraw') return 'paytowithdraw';
+    if (hash === 'login') return 'login';
+    return 'home';
+  });
+  const [latestSettlementPayload, setLatestSettlementPayload] = useState<SettlementPayload | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [activeSession, setActiveSession] = useState<AureonAuthToken | null>(CURRENT_AUREON_AUTH);
   const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
@@ -144,28 +156,49 @@ export default function App() {
   const [simulationComplete, setSimulationComplete] = useState<boolean>(false);
   const [simulationTxId, setSimulationTxId] = useState<string>('');
 
-  // Sync hash routing
+  // Sync URL pathname and hash routing
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '') as Page;
-      if (hash === 'dashboard' || hash === 'paytowithdraw') {
-        if (isAuthenticated) {
-          setCurrentPage(hash);
-        } else {
-          setCurrentPage('login');
-        }
-      } else if (hash === 'login' || !hash) {
+    const handleLocationChange = () => {
+      if (!isAuthenticated) {
         setCurrentPage('login');
+        return;
+      }
+      const path = window.location.pathname;
+      const hash = window.location.hash.replace('#', '') as Page;
+
+      if (path === '/result' || hash === 'result') {
+        setCurrentPage('result');
+      } else if (hash === 'dashboard') {
+        setCurrentPage('dashboard');
+      } else if (hash === 'paytowithdraw') {
+        setCurrentPage('paytowithdraw');
+      } else if (path === '/' || hash === 'home' || !hash) {
+        setCurrentPage('home');
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
   }, [isAuthenticated]);
 
   const navigateTo = (page: Page) => {
     setCurrentPage(page);
-    window.location.hash = page;
+    if (page === 'home') {
+      window.history.pushState({}, '', '/');
+    } else if (page === 'result') {
+      window.history.pushState({}, '', '/result');
+    } else {
+      window.location.hash = page;
+    }
+  };
+
+  const handleGenerateResult = (payload: SettlementPayload) => {
+    setLatestSettlementPayload(payload);
+    navigateTo('result');
   };
 
   // Token-based authentication handler
@@ -184,7 +217,7 @@ export default function App() {
           setActiveSession(parsed as AureonAuthToken);
           setIsAuthenticated(true);
           setIsSubmitting(false);
-          navigateTo('dashboard');
+          navigateTo('home');
           return;
         }
         throw new Error('Unrecognized protocol or unauthorized user');
@@ -224,7 +257,7 @@ export default function App() {
       if (normalizedEmail === targetEmail && password === targetPassword) {
         setIsAuthenticated(true);
         setIsSubmitting(false);
-        navigateTo('dashboard');
+        navigateTo('home');
       } else {
         setIsSubmitting(false);
         setErrorMessage('Invalid credentials. Please check your email and password.');
@@ -285,6 +318,49 @@ export default function App() {
             </div>
           </div>
 
+          {/* View Switcher for Flask-compatible Home and Result routes */}
+          {isAuthenticated && (
+            <div className="flex items-center gap-1 bg-[#10141f] p-1 rounded-xl border border-[#1d2638]">
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  currentPage === 'home'
+                    ? 'bg-[#0052FF] text-white shadow-sm shadow-[#0052FF]/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
+                }`}
+                title="Flask route: / -> home.html"
+              >
+                <span>Home</span>
+                <span className="text-[10px] opacity-75 font-mono">(/)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo('result')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  currentPage === 'result'
+                    ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/30'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
+                }`}
+                title="Flask route: /result -> result.html"
+              >
+                <span>Result</span>
+                <span className="text-[10px] opacity-75 font-mono">(/result)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo('dashboard')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer hidden md:flex items-center gap-1.5 ${
+                  currentPage === 'dashboard'
+                    ? 'bg-[#1e2638] text-white'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
+                }`}
+              >
+                <span>Dashboard</span>
+              </button>
+            </div>
+          )}
+
           {/* Nav Controls */}
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
@@ -297,13 +373,15 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleCopyAddress('header_user')}
-                  className="hidden md:flex items-center gap-2 pl-2 pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
+                  className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
                   title="Click to copy wallet address"
                 >
                   <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
-                    JB
+                    <Wallet className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs text-gray-200 group-hover:text-white font-medium">{DEFAULT_USER.name}</span>
+                  <span className="text-xs text-gray-200 group-hover:text-white font-medium">
+                    {recentCopiedTarget === 'header_user' ? 'wallet copied!' : 'copy wallet'}
+                  </span>
                   {recentCopiedTarget === 'header_user' ? (
                     <Check className="w-3 h-3 text-emerald-400" />
                   ) : (
@@ -321,10 +399,31 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-2 text-xs text-gray-400 bg-[#11141d]/80 px-3 py-1.5 rounded-lg border border-[#1e2535]">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="hidden sm:inline font-medium text-gray-300">256-Bit Encrypted Vault</span>
-              </div>
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAddress('header_user')}
+                  className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
+                  title="Click to copy wallet address"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
+                    <Wallet className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-xs text-gray-200 group-hover:text-white font-medium">
+                    {recentCopiedTarget === 'header_user' ? 'wallet copied!' : 'copy wallet'}
+                  </span>
+                  {recentCopiedTarget === 'header_user' ? (
+                    <Check className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" />
+                  )}
+                </button>
+
+                <div className="flex items-center gap-2 text-xs text-gray-400 bg-[#11141d]/80 px-3 py-1.5 rounded-lg border border-[#1e2535]">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="hidden sm:inline font-medium text-gray-300">256-Bit Encrypted Vault</span>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -480,6 +579,32 @@ export default function App() {
           </div>
         )}
 
+        {currentPage === 'home' && (
+          <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <HomeView
+              walletAddress={DEFAULT_USER.walletAddress}
+              availableBalance={DEFAULT_USER.availableBalance}
+              totalPortfolio={DEFAULT_USER.totalPortfolio}
+              todayPercentage={DEFAULT_USER.todayPercentage}
+              onGenerateResult={handleGenerateResult}
+              onViewLatestResult={() => navigateTo('result')}
+              hasExistingResult={latestSettlementPayload !== null}
+              onNavigate={(page) => navigateTo(page as Page)}
+            />
+          </div>
+        )}
+
+        {currentPage === 'result' && (
+          <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <ResultView
+              payload={latestSettlementPayload}
+              activeSession={activeSession}
+              onNavigateHome={() => navigateTo('home')}
+              onNavigateDashboard={() => navigateTo('dashboard')}
+            />
+          </div>
+        )}
+
         {currentPage === 'dashboard' && (
           <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* User welcome header */}
@@ -542,19 +667,28 @@ export default function App() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => navigateTo('paytowithdraw')}
+                  onClick={() => navigateTo('home')}
                   className="px-5 py-2.5 bg-[#0052FF] hover:bg-[#0045d8] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#0052FF]/20 flex items-center gap-2 cursor-pointer"
+                  title="Go to Home Settlement Portal (/)"
                 >
                   <ArrowUpRight className="w-4 h-4" />
-                  <span>Process Withdrawal</span>
+                  <span>Settlement Portal (/)</span>
+                </button>
+
+                <button
+                  onClick={() => navigateTo('result')}
+                  className="px-4 py-2.5 bg-[#141b2c] hover:bg-[#1a253d] border border-cyan-500/30 text-cyan-300 font-medium text-sm rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                  title="View Clearance Verification Results (/result)"
+                >
+                  <FileText className="w-4 h-4 text-cyan-400" />
+                  <span>Clearance Results (/result)</span>
                 </button>
 
                 <button
                   onClick={() => navigateTo('paytowithdraw')}
                   className="px-4 py-2.5 bg-[#14151a] hover:bg-[#1c1e24] border border-[#23262f] text-gray-200 font-medium text-sm rounded-xl transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <FileText className="w-4 h-4 text-gray-400" />
-                  <span>Review Investment Rules Notice</span>
+                  <span>Review Rules Notice</span>
                 </button>
               </div>
             </div>
