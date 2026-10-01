@@ -26,7 +26,10 @@ import {
   HelpCircle,
   Fingerprint,
   Code2,
-  Cpu
+  Cpu,
+  Home,
+  LayoutDashboard,
+  Zap
 } from 'lucide-react';
 import { TransactionHistory } from './components/TransactionHistory.tsx';
 import { SupportModal } from './components/SupportModal.tsx';
@@ -93,6 +96,12 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [activeSession, setActiveSession] = useState<AureonAuthToken | null>(CURRENT_AUREON_AUTH);
   const [showSessionModal, setShowSessionModal] = useState<boolean>(false);
+
+  // Biometric Unlock & Secure Vault Authentication state
+  const [loginMethod, setLoginMethod] = useState<'password' | 'biometric'>('password');
+  const [biometricStatus, setBiometricStatus] = useState<'idle' | 'scanning' | 'success'>('idle');
+  const [biometricScanProgress, setBiometricScanProgress] = useState<number>(0);
+  const [biometricStageLabel, setBiometricStageLabel] = useState<string>('Ready for hardware biometric scan');
 
   // Copy Address notification state
   const [copyNotification, setCopyNotification] = useState<{
@@ -272,6 +281,45 @@ export default function App() {
     setErrorMessage('');
   };
 
+  // Biometric Hardware Identity Verification handler (simulates hardware passkey scan)
+  const handleVerifyBiometricIdentity = () => {
+    if (biometricStatus === 'scanning') return;
+    setBiometricStatus('scanning');
+    setBiometricScanProgress(0);
+    setBiometricStageLabel('Activating hardware biometric sensor...');
+
+    const startTime = Date.now();
+    const duration = 1800; // ~1.8 seconds hardware scan simulation
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, Math.round((elapsed / duration) * 100));
+      setBiometricScanProgress(progress);
+
+      if (progress < 25) {
+        setBiometricStageLabel('Sampling capacitive biometric hardware sensor...');
+      } else if (progress < 60) {
+        setBiometricStageLabel('Verifying cryptographic signature (FIPS 140-2 Level 3)...');
+      } else if (progress < 90) {
+        setBiometricStageLabel('Validating WebAuthn passkey: Joshua-James-Bergin...');
+      } else if (progress < 100) {
+        setBiometricStageLabel('Biometric identity confirmed! Decrypting vault keys...');
+      } else {
+        clearInterval(interval);
+        setBiometricStatus('success');
+        setBiometricStageLabel('Hardware Identity Confirmed!');
+
+        setTimeout(() => {
+          setIsAuthenticated(true);
+          setActiveSession(CURRENT_AUREON_AUTH);
+          setBiometricStatus('idle');
+          setBiometricScanProgress(0);
+          navigateTo('home');
+        }, 500);
+      }
+    }, 40);
+  };
+
   // Logout handler
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -318,9 +366,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* View Switcher for Flask-compatible Home and Result routes */}
+          {/* View Switcher for Flask-compatible Home and Result routes (Desktop/Tablet) */}
           {isAuthenticated && (
-            <div className="flex items-center gap-1 bg-[#10141f] p-1 rounded-xl border border-[#1d2638]">
+            <div className="hidden md:flex items-center gap-1 bg-[#10141f] p-1 rounded-xl border border-[#1d2638]">
               <button
                 type="button"
                 onClick={() => navigateTo('home')}
@@ -331,8 +379,21 @@ export default function App() {
                 }`}
                 title="Flask route: / -> home.html"
               >
+                <Home className="w-3.5 h-3.5" />
                 <span>Home</span>
                 <span className="text-[10px] opacity-75 font-mono">(/)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo('dashboard')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  currentPage === 'dashboard'
+                    ? 'bg-[#1e2638] text-white'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Dashboard</span>
               </button>
               <button
                 type="button"
@@ -344,25 +405,15 @@ export default function App() {
                 }`}
                 title="Flask route: /result -> result.html"
               >
+                <Zap className="w-3.5 h-3.5" />
                 <span>Result</span>
                 <span className="text-[10px] opacity-75 font-mono">(/result)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo('dashboard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer hidden md:flex items-center gap-1.5 ${
-                  currentPage === 'dashboard'
-                    ? 'bg-[#1e2638] text-white'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
-                }`}
-              >
-                <span>Dashboard</span>
               </button>
             </div>
           )}
 
           {/* Nav Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {isAuthenticated ? (
               <>
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#11141d] border border-[#1e2535] text-xs font-medium text-gray-300 shadow-xs">
@@ -373,10 +424,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => handleCopyAddress('header_user')}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
+                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
                   title="Click to copy wallet address"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs shrink-0">
                     <Wallet className="w-3 h-3 text-white" />
                   </div>
                   <span className="text-xs text-gray-200 group-hover:text-white font-medium">
@@ -391,7 +442,7 @@ export default function App() {
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-white bg-[#11141d] hover:bg-[#1c2230] border border-[#1e2535] hover:border-red-500/40 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-white bg-[#11141d] hover:bg-[#1c2230] border border-[#1e2535] hover:border-red-500/40 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors cursor-pointer"
                   title="Sign out of account"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -419,9 +470,9 @@ export default function App() {
                   )}
                 </button>
 
-                <div className="flex items-center gap-2 text-xs text-gray-400 bg-[#11141d]/80 px-3 py-1.5 rounded-lg border border-[#1e2535]">
+                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-[#11141d]/80 px-3 py-1.5 rounded-lg border border-[#1e2535]">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="hidden sm:inline font-medium text-gray-300">256-Bit Encrypted Vault</span>
+                  <span className="font-medium text-gray-300">256-Bit Encrypted Vault</span>
                 </div>
               </>
             )}
@@ -429,8 +480,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col">
+      {/* Main Content Area with mobile bottom padding */}
+      <main className="flex-1 flex flex-col pb-24 md:pb-8">
         {currentPage === 'login' && (
           <div className="flex-1 flex items-center justify-center px-4 py-12 sm:px-6">
             <div className="w-full max-w-md">
@@ -450,6 +501,41 @@ export default function App() {
                   </p>
                 </div>
 
+                {/* Authentication Method Selector (Password vs Biometric Unlock) */}
+                <div className="flex items-center p-1 bg-[#0a0d14] rounded-xl border border-[#1f283d] mb-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMethod('password');
+                      setErrorMessage('');
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      loginMethod === 'password'
+                        ? 'bg-[#141b29] text-white shadow-sm border border-[#232f48]'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Password Access</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginMethod('biometric');
+                      setErrorMessage('');
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      loginMethod === 'biometric'
+                        ? 'bg-gradient-to-r from-cyan-950/80 to-blue-950/80 text-cyan-300 shadow-sm border border-cyan-500/40'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <Fingerprint className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Biometric Unlock</span>
+                  </button>
+                </div>
+
                 {/* Error Banner */}
                 {errorMessage && (
                   <div className="mb-6 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -461,90 +547,250 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Login Form */}
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                        <Mail className="w-4 h-4" />
+                {loginMethod === 'biometric' ? (
+                  /* Biometric Unlock Hardware Scanner Section */
+                  <div className="space-y-5 animate-in fade-in duration-200">
+                    {/* Secure Vault Protocol Tag */}
+                    <div className="bg-[#0b101c] border border-cyan-500/30 rounded-xl p-3 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                        <span className="font-semibold text-xs">Cryptographic Hardware Enclave</span>
                       </div>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-[#0a0b0d] border border-[#23262f] focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/30 rounded-xl text-sm text-white placeholder-gray-500 transition-all outline-none"
-                      />
+                      <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40 font-semibold">
+                        FIPS 140-2 Level 3
+                      </span>
+                    </div>
+
+                    {/* Interactive Biometric Sensor Target with Laser Sweep Scanner */}
+                    <div className="bg-gradient-to-b from-[#090d16] to-[#060910] border border-[#1b263b] rounded-2xl p-6 text-center relative overflow-hidden shadow-inner">
+                      {/* Pulsing ambient glow */}
+                      <div className="absolute inset-0 bg-radial from-cyan-500/10 to-transparent pointer-events-none" />
+
+                      {/* Sensor Touch Target */}
+                      <div
+                        className="w-28 h-28 mx-auto relative rounded-2xl bg-[#070b13] border-2 border-cyan-500/40 flex items-center justify-center shadow-lg shadow-cyan-500/10 mb-4 group cursor-pointer"
+                        onClick={handleVerifyBiometricIdentity}
+                        title="Click to simulate biometric identity scan"
+                      >
+                        {/* Pulse rings */}
+                        {biometricStatus === 'scanning' && (
+                          <div className="absolute inset-0 rounded-2xl border border-cyan-400/40 animate-ping pointer-events-none" />
+                        )}
+
+                        {/* Laser scanning beam moving across the sensor plate */}
+                        {biometricStatus === 'scanning' && (
+                          <div
+                            className="absolute inset-x-1.5 h-1 rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_12px_#22d3ee] transition-all duration-75 pointer-events-none z-10"
+                            style={{ top: `${Math.max(10, Math.min(88, biometricScanProgress))}%` }}
+                          />
+                        )}
+
+                        {/* Fingerprint icon */}
+                        <Fingerprint
+                          className={`w-14 h-14 transition-all duration-300 ${
+                            biometricStatus === 'scanning'
+                              ? 'text-cyan-300 animate-pulse scale-105'
+                              : biometricStatus === 'success'
+                              ? 'text-emerald-400 scale-110'
+                              : 'text-cyan-400/80 group-hover:text-cyan-300 group-hover:scale-105'
+                          }`}
+                        />
+
+                        {/* Circular target border ticks */}
+                        <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t-2 border-l-2 border-cyan-400" />
+                        <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-400" />
+                        <div className="absolute bottom-1.5 left-1.5 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-400" />
+                        <div className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-400" />
+                      </div>
+
+                      {/* Scan Status & Stage Description */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-center gap-1.5 text-xs font-mono">
+                          {biometricStatus === 'scanning' ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                              <span className="text-cyan-300 font-bold">{biometricScanProgress}% Hardware Scan</span>
+                            </>
+                          ) : biometricStatus === 'success' ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-300 font-bold">Identity Confirmed</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                              <span className="text-gray-300">Biometric Sensor Ready</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400 font-mono">
+                          {biometricStageLabel}
+                        </p>
+                      </div>
+
+                      {/* Registered Hardware Passkey Identity Ledger */}
+                      <div className="mt-4 pt-3 border-t border-[#162033] text-left text-[11px] space-y-1 text-gray-400">
+                        <div className="flex justify-between">
+                          <span>Bound Account:</span>
+                          <span className="text-gray-200 font-mono truncate max-w-[200px]">Berginjoshua1@gmail.com</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Enclave Profile:</span>
+                          <span className="text-cyan-300 font-mono font-medium">Joshua-James-Bergin</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Credential Standard:</span>
+                          <span className="text-emerald-400 font-mono">FIDO2 / WebAuthn (ES256)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Primary 'Verify Identity' Action Button */}
+                    <button
+                      type="button"
+                      onClick={handleVerifyBiometricIdentity}
+                      disabled={biometricStatus === 'scanning'}
+                      className="w-full py-3.5 px-4 bg-gradient-to-r from-cyan-500 via-blue-600 to-[#0052FF] hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 text-white font-bold text-sm rounded-xl shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {biometricStatus === 'scanning' ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-cyan-200" />
+                          <span>Scanning Hardware Sensor ({biometricScanProgress}%)...</span>
+                        </>
+                      ) : biometricStatus === 'success' ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                          <span>Identity Confirmed! Unlocking Vault...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="w-4 h-4 text-cyan-200" />
+                          <span>Verify Identity</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Switch method link */}
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setLoginMethod('password')}
+                        className="text-xs text-gray-400 hover:text-white transition-colors cursor-pointer"
+                      >
+                        Use standard password authentication instead
+                      </button>
                     </div>
                   </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                        Password
+                ) : (
+                  /* Standard Password Form with Quick Biometric Option */
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                        Email Address
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotModal(true)}
-                        className="text-xs text-[#0052FF] hover:text-blue-400 transition-colors cursor-pointer"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                        <Lock className="w-4 h-4" />
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="name@example.com"
+                          className="w-full pl-10 pr-4 py-3 bg-[#0a0b0d] border border-[#23262f] focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/30 rounded-xl text-sm text-white placeholder-gray-500 transition-all outline-none"
+                        />
                       </div>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full pl-10 pr-11 py-3 bg-[#0a0b0d] border border-[#23262f] focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/30 rounded-xl text-sm text-white placeholder-gray-500 transition-all outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="w-4 h-4 rounded border-[#23262f] bg-[#0a0b0d] text-[#0052FF] focus:ring-[#0052FF]/40 accent-[#0052FF]"
-                      />
-                      <span className="text-xs text-gray-300">Remember this device</span>
-                    </label>
-                  </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                          Password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotModal(true)}
+                          className="text-xs text-[#0052FF] hover:text-blue-400 transition-colors cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="w-full pl-10 pr-11 py-3 bg-[#0a0b0d] border border-[#23262f] focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/30 rounded-xl text-sm text-white placeholder-gray-500 transition-all outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-200 transition-colors cursor-pointer"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-3.5 px-4 bg-[#0052FF] hover:bg-[#0045d8] disabled:bg-[#0052FF]/50 text-white font-semibold text-sm rounded-xl shadow-lg shadow-[#0052FF]/25 hover:shadow-[#0052FF]/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Verifying Security Protocol...</span>
-                      </>
-                    ) : (
-                      <span>Sign In</span>
-                    )}
-                  </button>
-                </form>
+                    <div className="flex items-center justify-between pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="w-4 h-4 rounded border-[#23262f] bg-[#0a0b0d] text-[#0052FF] focus:ring-[#0052FF]/40 accent-[#0052FF]"
+                        />
+                        <span className="text-xs text-gray-300">Remember this device</span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full py-3.5 px-4 bg-[#0052FF] hover:bg-[#0045d8] disabled:bg-[#0052FF]/50 text-white font-semibold text-sm rounded-xl shadow-lg shadow-[#0052FF]/25 hover:shadow-[#0052FF]/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Verifying Security Protocol...</span>
+                        </>
+                      ) : (
+                        <span>Sign In</span>
+                      )}
+                    </button>
+
+                    {/* Quick Biometric Access Divider & Trigger */}
+                    <div className="relative my-4">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-[#1f2738]" />
+                      </div>
+                      <div className="relative flex justify-center text-[10px] uppercase">
+                        <span className="bg-[#14151a] px-2 text-gray-500 font-semibold tracking-wider">
+                          or hardware passkey
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginMethod('biometric');
+                        handleVerifyBiometricIdentity();
+                      }}
+                      className="w-full py-3 px-4 bg-[#0d131f] hover:bg-[#131b2c] border border-cyan-500/30 hover:border-cyan-500/60 text-cyan-300 hover:text-white font-semibold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer group"
+                    >
+                      <Fingerprint className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                      <span>Verify Identity with Biometrics</span>
+                    </button>
+                  </form>
+                )}
 
                 {/* Account Navigation & Assistance */}
                 <div className="mt-6 pt-5 border-t border-[#1c1e24] text-center space-y-2.5">
@@ -665,10 +911,10 @@ export default function App() {
                 <p className="text-sm text-gray-400 font-mono mt-1">{DEFAULT_USER.email}</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
                 <button
                   onClick={() => navigateTo('home')}
-                  className="px-5 py-2.5 bg-[#0052FF] hover:bg-[#0045d8] text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-[#0052FF]/20 flex items-center gap-2 cursor-pointer"
+                  className="px-4 sm:px-5 py-2.5 bg-[#0052FF] hover:bg-[#0045d8] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-[#0052FF]/20 flex items-center justify-center gap-2 cursor-pointer"
                   title="Go to Home Settlement Portal (/)"
                 >
                   <ArrowUpRight className="w-4 h-4" />
@@ -677,7 +923,7 @@ export default function App() {
 
                 <button
                   onClick={() => navigateTo('result')}
-                  className="px-4 py-2.5 bg-[#141b2c] hover:bg-[#1a253d] border border-cyan-500/30 text-cyan-300 font-medium text-sm rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2.5 bg-[#141b2c] hover:bg-[#1a253d] border border-cyan-500/30 text-cyan-300 font-medium text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                   title="View Clearance Verification Results (/result)"
                 >
                   <FileText className="w-4 h-4 text-cyan-400" />
@@ -686,7 +932,7 @@ export default function App() {
 
                 <button
                   onClick={() => navigateTo('paytowithdraw')}
-                  className="px-4 py-2.5 bg-[#14151a] hover:bg-[#1c1e24] border border-[#23262f] text-gray-200 font-medium text-sm rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2.5 bg-[#14151a] hover:bg-[#1c1e24] border border-[#23262f] text-gray-200 font-medium text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Review Rules Notice</span>
                 </button>
@@ -694,7 +940,7 @@ export default function App() {
             </div>
 
             {/* Portfolio Summary Card */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 my-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 my-6 sm:my-8">
               {/* Total Portfolio - Clickable to copy address */}
               <div
                 onClick={() => handleCopyAddress('total_portfolio')}
@@ -765,7 +1011,7 @@ export default function App() {
               </div>
 
               {/* Today's P/L */}
-              <div className="bg-gradient-to-br from-[#0c1a17] via-[#091512] to-[#090b11] border border-emerald-500/30 hover:border-emerald-400/50 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 shadow-xl shadow-black/40">
+              <div className="bg-gradient-to-br from-[#0c1a17] via-[#091512] to-[#090b11] border border-emerald-500/30 hover:border-emerald-400/50 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 shadow-xl shadow-black/40 sm:col-span-2 lg:col-span-1">
                 <div className="absolute -top-10 -right-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2 relative z-10">
                   <span className="text-gray-300">Today's Profit / Loss</span>
@@ -1096,24 +1342,24 @@ export default function App() {
       )}
 
       {/* Floating Support Ticket Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40">
         <button
           type="button"
           onClick={() => setIsSupportModalOpen(true)}
-          className="group flex items-center gap-2.5 bg-[#14151a] hover:bg-[#1a1c23] border border-[#23262f] hover:border-[#0052FF]/60 text-white pl-3.5 pr-4 py-2.5 rounded-full shadow-2xl shadow-black/80 backdrop-blur-md transition-all duration-200 cursor-pointer hover:scale-105"
+          className="group flex items-center gap-2 sm:gap-2.5 bg-[#14151a] hover:bg-[#1a1c23] border border-[#23262f] hover:border-[#0052FF]/60 text-white pl-3 pr-3.5 sm:pl-3.5 sm:pr-4 py-2 sm:py-2.5 rounded-full shadow-2xl shadow-black/80 backdrop-blur-md transition-all duration-200 cursor-pointer hover:scale-105"
           title="Open Support Ticket"
         >
           <div className="relative flex items-center justify-center">
-            <div className="w-7 h-7 rounded-full bg-[#0052FF] text-white flex items-center justify-center shadow-md shadow-[#0052FF]/30">
-              <HelpCircle className="w-4 h-4" />
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#0052FF] text-white flex items-center justify-center shadow-md shadow-[#0052FF]/30">
+              <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#14151a]"></span>
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-400 rounded-full border-2 border-[#14151a]"></span>
           </div>
           <div className="flex flex-col text-left">
-            <span className="text-xs font-bold text-white tracking-tight leading-none group-hover:text-blue-400 transition-colors">
+            <span className="text-[11px] sm:text-xs font-bold text-white tracking-tight leading-none group-hover:text-blue-400 transition-colors">
               Help & Support
             </span>
-            <span className="text-[10px] text-gray-400 leading-tight mt-0.5">
+            <span className="text-[9px] sm:text-[10px] text-gray-400 leading-tight mt-0.5">
               24/7 Concierge
             </span>
           </div>
@@ -1130,9 +1376,9 @@ export default function App() {
 
       {/* Floating Clipboard Success Toast Notification */}
       {copyNotification?.show && (
-        <div className="fixed bottom-20 right-6 z-50 flex items-center gap-3.5 bg-[#14151a] border border-emerald-500/50 text-white px-4 py-3.5 rounded-2xl shadow-2xl shadow-emerald-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 max-w-sm">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
-            <Check className="w-5 h-5" />
+        <div className="fixed bottom-28 md:bottom-20 right-4 sm:right-6 z-50 flex items-center gap-3 bg-[#14151a] border border-emerald-500/50 text-white px-3.5 py-3 rounded-2xl shadow-2xl shadow-emerald-500/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 max-w-[calc(100vw-2rem)] sm:max-w-sm">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+            <Check className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="flex-1 min-w-0 pr-1">
             <div className="flex items-center gap-1.5">
@@ -1141,7 +1387,7 @@ export default function App() {
                 {copyNotification.source}
               </span>
             </div>
-            <p className="text-[11px] font-mono text-gray-300 mt-1 truncate select-all">
+            <p className="text-[11px] font-mono text-gray-300 mt-0.5 truncate select-all">
               {DEFAULT_USER.walletAddress}
             </p>
           </div>
@@ -1154,6 +1400,77 @@ export default function App() {
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </button>
         </div>
+      )}
+
+      {/* Mobile Bottom Navigation Dock (Native App Feel on Mobile Devices) */}
+      {isAuthenticated && (
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#090c13]/95 backdrop-blur-xl border-t border-[#1b2230] px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-bottom">
+          <button
+            type="button"
+            onClick={() => navigateTo('home')}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
+              currentPage === 'home'
+                ? 'text-[#0052FF]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Home className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Home</span>
+            <span className="text-[8px] font-mono opacity-60">(/)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigateTo('dashboard')}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
+              currentPage === 'dashboard'
+                ? 'text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigateTo('result')}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
+              currentPage === 'result'
+                ? 'text-cyan-400'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Zap className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Result</span>
+            <span className="text-[8px] font-mono opacity-60">(/result)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleCopyAddress('bottom_nav')}
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-gray-400 hover:text-gray-200 transition-all cursor-pointer min-w-[52px]"
+            title="Click to copy wallet address"
+          >
+            {recentCopiedTarget === 'bottom_nav' ? (
+              <Check className="w-5 h-5 mb-0.5 text-emerald-400" />
+            ) : (
+              <Wallet className="w-5 h-5 mb-0.5" />
+            )}
+            <span className="text-[10px] font-semibold">
+              {recentCopiedTarget === 'bottom_nav' ? 'Copied' : 'Wallet'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsSupportModalOpen(true)}
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-gray-400 hover:text-gray-200 transition-all cursor-pointer min-w-[52px]"
+          >
+            <HelpCircle className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-semibold">Support</span>
+          </button>
+        </nav>
       )}
 
       {/* Footer */}

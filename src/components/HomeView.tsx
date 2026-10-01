@@ -122,52 +122,52 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
       {/* Home Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#0d1322] via-[#0f172a] to-[#0b101d] border border-[#1f293d] rounded-2xl p-6 sm:p-8 shadow-xl">
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#0d1322] via-[#0f172a] to-[#0b101d] border border-[#1f293d] rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
           <div>
             <div className="flex items-center gap-2 text-xs font-mono text-blue-400 mb-2">
               <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
               <span>Home Route: / · Flask template: home.html</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight">
               Cryptographic Settlement & Liquidity Portal
             </h1>
-            <p className="text-sm text-gray-300 mt-2 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-300 mt-2 max-w-2xl leading-relaxed">
               Initiate on-chain asset clearance or simulate execution to render real-time verification results.
               Form submissions transition seamlessly to the <code className="text-cyan-400 font-mono bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-800/40">/result</code> route.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate('dashboard')}
+              className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#14151a] hover:bg-[#1d1f27] border border-[#2b3140] text-gray-300 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Full Portfolio (Dashboard)</span>
+            </button>
             {hasExistingResult && (
               <button
                 type="button"
                 onClick={onViewLatestResult}
-                className="px-4 py-2.5 bg-[#172033] hover:bg-[#1f2b45] text-cyan-300 border border-cyan-500/30 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#172033] hover:bg-[#1f2b45] text-cyan-300 border border-cyan-500/30 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
               >
                 <FileCheck className="w-4 h-4 text-cyan-400" />
                 <span>View Latest Result</span>
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => onNavigate('dashboard')}
-              className="px-4 py-2.5 bg-[#14151a] hover:bg-[#1d1f27] border border-[#2b3140] text-gray-300 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <Layers className="w-4 h-4" />
-              <span>Full Portfolio</span>
-            </button>
           </div>
         </div>
       </div>
 
       {/* Snapshot Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-5 shadow-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
+        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1 flex items-center justify-between">
             <span>Total Valuation</span>
             <Wallet className="w-4 h-4 text-[#0052FF]" />
@@ -181,7 +181,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-5 shadow-lg">
+        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1 flex items-center justify-between">
             <span>Available for Settlement</span>
             <Zap className="w-4 h-4 text-cyan-400" />
@@ -194,7 +194,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-5 shadow-lg">
+        <div className="bg-[#0c1017] border border-[#1b2234] rounded-2xl p-4 sm:p-5 shadow-lg sm:col-span-2 lg:col-span-1">
           <div className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1 flex items-center justify-between">
             <span>Authorized Wallet</span>
             <button
@@ -206,7 +206,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <div className="text-xs font-mono text-gray-200 mt-2 break-all bg-[#121622] p-2.5 rounded-lg border border-[#1e2536]">
+          <div className="text-xs font-mono text-gray-200 mt-2 break-all bg-[#121622] p-2.5 rounded-lg border border-[#1e2536] select-all">
             {walletAddress}
           </div>
           <div className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1 font-medium">
@@ -217,10 +217,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* Main Form: Home Interactive Settlement Generator */}
-      <div className="bg-[#0c1017] border border-[#1b2438] rounded-2xl p-6 sm:p-8 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-[#1a2336] gap-2">
+      <div className="bg-[#0c1017] border border-[#1b2438] rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 sm:pb-6 border-b border-[#1a2336] gap-2">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
               <Sliders className="w-5 h-5 text-blue-400" />
               <span>Initiate Settlement / Clearance Simulation</span>
             </h2>
@@ -313,17 +313,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 max={selectedAsset.available}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-[#0a0d14] border border-[#20293d] focus:border-blue-500 focus:outline-none rounded-xl px-4 py-3.5 text-white font-mono text-base pr-28 transition-colors"
+                className="w-full bg-[#0a0d14] border border-[#20293d] focus:border-blue-500 focus:outline-none rounded-xl px-4 py-3.5 text-white font-mono text-base pr-20 sm:pr-36 transition-colors"
                 placeholder="0.00"
                 required
               />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+              <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 pointer-events-none">
                 <span className="text-xs font-bold text-gray-300">{selectedAsset.symbol}</span>
-                <span className="text-xs text-gray-500">·</span>
-                <span className="text-xs font-mono text-emerald-400">
+                <span className="hidden sm:inline text-xs text-gray-500">·</span>
+                <span className="hidden sm:inline text-xs font-mono text-emerald-400">
                   ≈ ${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
+            </div>
+            <div className="sm:hidden text-right text-[11px] font-mono text-emerald-400 mt-1">
+              ≈ ${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
             </div>
           </div>
 
@@ -400,11 +403,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Submit Action Button */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
             <button
               type="submit"
               disabled={isCalculating || numAmount <= 0}
-              className="w-full sm:w-auto flex-1 py-3.5 px-6 bg-gradient-to-r from-[#0052FF] to-[#0066ff] hover:from-[#0047e0] hover:to-[#0055e0] disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:flex-1 py-3.5 px-6 bg-gradient-to-r from-[#0052FF] to-[#0066ff] hover:from-[#0047e0] hover:to-[#0055e0] disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer"
             >
               {isCalculating ? (
                 <>
