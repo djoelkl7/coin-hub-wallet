@@ -137,30 +137,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               Cryptographic Settlement & Liquidity Portal
             </h1>
             <p className="text-xs sm:text-sm text-gray-300 mt-2 max-w-2xl leading-relaxed">
-              Initiate on-chain asset clearance or simulate execution to render real-time verification results.
-              Form submissions transition seamlessly to the <code className="text-cyan-400 font-mono bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-800/40">/result</code> route.
+              Initiate on-chain asset clearance or simulate execution to render real-time verification and settlement.
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate('dashboard')}
-              className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#14151a] hover:bg-[#1d1f27] border border-[#2b3140] text-gray-300 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Layers className="w-4 h-4" />
-              <span>Full Portfolio (Dashboard)</span>
-            </button>
-            {hasExistingResult && (
-              <button
-                type="button"
-                onClick={onViewLatestResult}
-                className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 sm:py-2.5 bg-[#172033] hover:bg-[#1f2b45] text-cyan-300 border border-cyan-500/30 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-              >
-                <FileCheck className="w-4 h-4 text-cyan-400" />
-                <span>View Latest Result</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -416,7 +394,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Process Clearance & View Result (/result)</span>
+                  <span>Execute Instant Settlement</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

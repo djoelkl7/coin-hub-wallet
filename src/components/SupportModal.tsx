@@ -51,7 +51,7 @@ export function SupportModal({ isOpen, onClose, defaultEmail = '', defaultName =
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      const ticketId = `CBW-${Math.floor(100000 + Math.random() * 900000)}`;
+      const ticketId = `ZL-${Math.floor(100000 + Math.random() * 900000)}`;
       setSubmittedTicket({
         id: ticketId,
         category: CATEGORIES.find((c) => c.id === category)?.label || 'General Support',
@@ -139,7 +139,7 @@ export function SupportModal({ isOpen, onClose, defaultEmail = '', defaultName =
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white tracking-tight">Open Support Ticket</h3>
-                <p className="text-xs text-blue-400/90 font-medium">Crypto Trade Hub Technical & Clearance Concierge</p>
+                <p className="text-xs text-[#00C076] font-medium">Zephyr Ledger Technical & Clearance Concierge</p>
               </div>
             </div>
 

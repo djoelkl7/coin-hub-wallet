@@ -29,12 +29,18 @@ import {
   Cpu,
   Home,
   LayoutDashboard,
-  Zap
+  Zap,
+  FileDown
 } from 'lucide-react';
 import { TransactionHistory } from './components/TransactionHistory.tsx';
 import { SupportModal } from './components/SupportModal.tsx';
 import { HomeView, SettlementPayload } from './components/HomeView.tsx';
 import { ResultView } from './components/ResultView.tsx';
+import { EtoroHomeView } from './components/EtoroHomeView.tsx';
+import { PortfolioPerformanceChart } from './components/PortfolioPerformanceChart.tsx';
+import { AssetAllocationDonutChart } from './components/AssetAllocationDonutChart.tsx';
+import { CryptographicAssetsSection } from './components/CryptographicAssetsSection.tsx';
+import { generatePortfolioPdf } from './utils/generatePortfolioPdf.ts';
 
 type Page = 'home' | 'result' | 'dashboard' | 'paytowithdraw' | 'login';
 
@@ -165,6 +171,35 @@ export default function App() {
   const [simulationComplete, setSimulationComplete] = useState<boolean>(false);
   const [simulationTxId, setSimulationTxId] = useState<string>('');
 
+  // Portfolio PDF export state
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+  const [pdfSuccessToast, setPdfSuccessToast] = useState<boolean>(false);
+
+  const handleDownloadPdf = () => {
+    setIsGeneratingPdf(true);
+    setTimeout(() => {
+      try {
+        generatePortfolioPdf({
+          userName: DEFAULT_USER.name,
+          userEmail: DEFAULT_USER.email,
+          walletAddress: DEFAULT_USER.walletAddress,
+          totalPortfolio: DEFAULT_USER.totalPortfolio,
+          availableBalance: DEFAULT_USER.availableBalance,
+          todayProfitLoss: DEFAULT_USER.todayProfitLoss,
+          todayPercentage: DEFAULT_USER.todayPercentage,
+          clearanceFee: DEFAULT_USER.clearanceFee,
+          protocol: activeSession?.protocol || 'AUREON-AUTH-V1 (FIPS 140-2)',
+        });
+        setIsGeneratingPdf(false);
+        setPdfSuccessToast(true);
+        setTimeout(() => setPdfSuccessToast(false), 3500);
+      } catch (err) {
+        console.error('PDF export error:', err);
+        setIsGeneratingPdf(false);
+      }
+    }, 450);
+  };
+
   // Sync URL pathname and hash routing
   useEffect(() => {
     const handleLocationChange = () => {
@@ -177,7 +212,7 @@ export default function App() {
 
       if (path === '/result' || hash === 'result') {
         setCurrentPage('result');
-      } else if (hash === 'dashboard') {
+      } else if (path === '/dashboard' || hash === 'dashboard') {
         setCurrentPage('dashboard');
       } else if (hash === 'paytowithdraw') {
         setCurrentPage('paytowithdraw');
@@ -194,12 +229,26 @@ export default function App() {
     };
   }, [isAuthenticated]);
 
+  // Global hidden shortcut listener (Alt+D or Ctrl+Shift+D to access Dashboard)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey && e.key.toLowerCase() === 'd') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd')) {
+        e.preventDefault();
+        navigateTo(currentPage === 'dashboard' ? 'home' : 'dashboard');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPage, isAuthenticated]);
+
   const navigateTo = (page: Page) => {
     setCurrentPage(page);
     if (page === 'home') {
       window.history.pushState({}, '', '/');
     } else if (page === 'result') {
       window.history.pushState({}, '', '/result');
+    } else if (page === 'dashboard') {
+      window.history.pushState({}, '', '/dashboard');
     } else {
       window.location.hash = page;
     }
@@ -301,7 +350,7 @@ export default function App() {
       } else if (progress < 60) {
         setBiometricStageLabel('Verifying cryptographic signature (FIPS 140-2 Level 3)...');
       } else if (progress < 90) {
-        setBiometricStageLabel('Validating WebAuthn passkey: Joshua-James-Bergin...');
+        setBiometricStageLabel('Validating WebAuthn passkey hardware signature...');
       } else if (progress < 100) {
         setBiometricStageLabel('Biometric identity confirmed! Decrypting vault keys...');
       } else {
@@ -347,88 +396,89 @@ export default function App() {
       <div className="absolute bottom-20 left-10 w-80 h-80 bg-[#0052FF]/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Top Navbar */}
-      <header className="border-b border-[#1b2230] bg-[#080a0f]/80 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/20">
+      <header className="border-b border-[#1a2336] bg-[#080b12]/90 backdrop-blur-xl sticky top-0 z-40 shadow-lg shadow-black/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative z-10">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0052FF] via-[#2563eb] to-[#06b6d4] p-[1.5px] shadow-lg shadow-[#0052FF]/25">
+          <div
+            onClick={() => navigateTo('home')}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00C076] via-[#10b981] to-[#06b6d4] p-[1.5px] shadow-lg shadow-[#00C076]/20 group-hover:scale-105 transition-transform">
               <div className="w-full h-full bg-[#0a0d14] rounded-[10px] flex items-center justify-center">
-                <div className="w-4 h-4 bg-gradient-to-tr from-[#0052FF] to-cyan-400 rounded-sm transform rotate-45 shadow-sm"></div>
+                <div className="w-4 h-4 bg-gradient-to-tr from-[#00C076] to-cyan-400 rounded-xs transform rotate-45 shadow-xs"></div>
               </div>
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold tracking-tight text-lg text-white">Crypto Trade</span>
-                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-[#0052FF] to-cyan-500 text-white tracking-wider shadow-sm shadow-cyan-500/20">
-                  HUB
+                <span className="font-extrabold tracking-tight text-lg text-white">Zephyr Ledger</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#00C076]/15 text-[#00C076] border border-[#00C076]/30">
+                  CRYPTO
                 </span>
               </div>
             </div>
           </div>
 
-          {/* View Switcher for Flask-compatible Home and Result routes (Desktop/Tablet) */}
-          {isAuthenticated && (
-            <div className="hidden md:flex items-center gap-1 bg-[#10141f] p-1 rounded-xl border border-[#1d2638]">
-              <button
-                type="button"
-                onClick={() => navigateTo('home')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  currentPage === 'home'
-                    ? 'bg-[#0052FF] text-white shadow-sm shadow-[#0052FF]/30'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
-                }`}
-                title="Flask route: / -> home.html"
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span>Home</span>
-                <span className="text-[10px] opacity-75 font-mono">(/)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo('dashboard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  currentPage === 'dashboard'
-                    ? 'bg-[#1e2638] text-white'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Dashboard</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo('result')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  currentPage === 'result'
-                    ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/30'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#161c2b]'
-                }`}
-                title="Flask route: /result -> result.html"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>Result</span>
-                <span className="text-[10px] opacity-75 font-mono">(/result)</span>
-              </button>
-            </div>
-          )}
+          {/* eToro-Style Center Navigation (Desktop) */}
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold text-gray-300">
+            <button
+              type="button"
+              onClick={() => {
+                if (currentPage !== 'home') navigateTo('home');
+                setTimeout(() => {
+                  document.getElementById('markets-table')?.scrollIntoView({ behavior: 'smooth' });
+                }, 80);
+              }}
+              className="hover:text-[#00C076] transition-colors cursor-pointer"
+            >
+              Markets
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentPage !== 'home') navigateTo('home');
+                setTimeout(() => {
+                  document.getElementById('copytrader-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 80);
+              }}
+              className="hover:text-[#00C076] transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <span>CopyTrader™</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentPage !== 'home') navigateTo('home');
+              }}
+              className="hover:text-[#00C076] transition-colors cursor-pointer"
+            >
+              Smart Portfolios
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSupportModalOpen(true)}
+              className="hover:text-[#00C076] transition-colors cursor-pointer"
+            >
+              Support
+            </button>
+          </nav>
 
           {/* Nav Controls */}
           <div className="flex items-center gap-2 sm:gap-3">
             {isAuthenticated ? (
               <>
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#11141d] border border-[#1e2535] text-xs font-medium text-gray-300 shadow-xs">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-xs shadow-emerald-400/50"></div>
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#111624] border border-[#1e273d] text-xs font-medium text-gray-300 shadow-xs">
+                  <div className="w-2 h-2 rounded-full bg-[#00C076] animate-pulse shadow-xs shadow-[#00C076]/50"></div>
                   <span className="text-gray-200 font-medium">Base Mainnet</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleCopyAddress('header_user')}
-                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
+                  className="flex items-center gap-1.5 sm:gap-2 pl-2 pr-2.5 sm:pr-3 py-1 bg-[#111624] hover:bg-[#182136] border border-[#1e273d] hover:border-[#00C076]/50 rounded-full transition-all cursor-pointer group shadow-xs"
                   title="Click to copy wallet address"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs shrink-0">
-                    <Wallet className="w-3 h-3 text-white" />
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#00C076] via-emerald-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-black shadow-xs shrink-0">
+                    <Wallet className="w-3 h-3 text-black" />
                   </div>
                   <span className="text-xs text-gray-200 group-hover:text-white font-medium">
                     {recentCopiedTarget === 'header_user' ? 'wallet copied!' : 'copy wallet'}
@@ -440,9 +490,26 @@ export default function App() {
                   )}
                 </button>
 
+                {/* Direct quick toggle between eToro Home & Settlement Dashboard */}
+                <button
+                  type="button"
+                  onClick={() => navigateTo(currentPage === 'dashboard' ? 'home' : 'dashboard')}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer shadow-xs ${
+                    currentPage === 'dashboard'
+                      ? 'bg-[#00C076] text-[#07090e] border-[#00C076]'
+                      : 'bg-[#111624] hover:bg-[#182136] text-gray-200 border-[#1e273d] hover:border-[#00C076]/40'
+                  }`}
+                  title="Switch between eToro home and settlement dashboard"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {currentPage === 'dashboard' ? 'Markets' : 'Portfolio'}
+                  </span>
+                </button>
+
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-white bg-[#11141d] hover:bg-[#1c2230] border border-[#1e2535] hover:border-red-500/40 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-white bg-[#111624] hover:bg-[#1c2230] border border-[#1e273d] hover:border-red-500/40 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors cursor-pointer"
                   title="Sign out of account"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -453,27 +520,11 @@ export default function App() {
               <>
                 <button
                   type="button"
-                  onClick={() => handleCopyAddress('header_user')}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1 bg-[#11141d] hover:bg-[#181d2a] border border-[#1e2535] hover:border-[#0052FF]/50 rounded-full transition-all cursor-pointer group shadow-xs"
-                  title="Click to copy wallet address"
+                  onClick={() => navigateTo('login')}
+                  className="px-4 py-2 bg-[#00C076] hover:bg-[#00a868] text-black font-bold text-xs rounded-xl transition-colors cursor-pointer"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0052FF] via-indigo-500 to-cyan-400 flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
-                    <Wallet className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="text-xs text-gray-200 group-hover:text-white font-medium">
-                    {recentCopiedTarget === 'header_user' ? 'wallet copied!' : 'copy wallet'}
-                  </span>
-                  {recentCopiedTarget === 'header_user' ? (
-                    <Check className="w-3 h-3 text-emerald-400" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" />
-                  )}
+                  Sign In
                 </button>
-
-                <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-[#11141d]/80 px-3 py-1.5 rounded-lg border border-[#1e2535]">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="font-medium text-gray-300">256-Bit Encrypted Vault</span>
-                </div>
               </>
             )}
           </div>
@@ -495,7 +546,7 @@ export default function App() {
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0052FF]/20 to-cyan-500/20 text-[#0052FF] mb-4 border border-[#0052FF]/30 shadow-lg shadow-[#0052FF]/10">
                     <KeyRound className="w-6 h-6 text-cyan-400" />
                   </div>
-                  <h1 className="text-2xl font-bold text-white tracking-tight">Sign in to Crypto Trade Hub</h1>
+                  <h1 className="text-2xl font-bold text-white tracking-tight">Sign in to Zephyr Ledger</h1>
                   <p className="text-sm text-gray-400 mt-2">
                     Access your decentralized portfolio, active trading orders, and instant settlement.
                   </p>
@@ -626,22 +677,6 @@ export default function App() {
                         <p className="text-[11px] text-gray-400 font-mono">
                           {biometricStageLabel}
                         </p>
-                      </div>
-
-                      {/* Registered Hardware Passkey Identity Ledger */}
-                      <div className="mt-4 pt-3 border-t border-[#162033] text-left text-[11px] space-y-1 text-gray-400">
-                        <div className="flex justify-between">
-                          <span>Bound Account:</span>
-                          <span className="text-gray-200 font-mono truncate max-w-[200px]">Berginjoshua1@gmail.com</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Enclave Profile:</span>
-                          <span className="text-cyan-300 font-mono font-medium">Joshua-James-Bergin</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Credential Standard:</span>
-                          <span className="text-emerald-400 font-mono">FIDO2 / WebAuthn (ES256)</span>
-                        </div>
                       </div>
                     </div>
 
@@ -826,16 +861,9 @@ export default function App() {
         )}
 
         {currentPage === 'home' && (
-          <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <HomeView
-              walletAddress={DEFAULT_USER.walletAddress}
-              availableBalance={DEFAULT_USER.availableBalance}
-              totalPortfolio={DEFAULT_USER.totalPortfolio}
-              todayPercentage={DEFAULT_USER.todayPercentage}
-              onGenerateResult={handleGenerateResult}
-              onViewLatestResult={() => navigateTo('result')}
-              hasExistingResult={latestSettlementPayload !== null}
-              onNavigate={(page) => navigateTo(page as Page)}
+          <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <EtoroHomeView
+              onOpenPortal={() => navigateTo('dashboard')}
             />
           </div>
         )}
@@ -914,20 +942,10 @@ export default function App() {
               <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
                 <button
                   onClick={() => navigateTo('home')}
-                  className="px-4 sm:px-5 py-2.5 bg-[#0052FF] hover:bg-[#0045d8] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-[#0052FF]/20 flex items-center justify-center gap-2 cursor-pointer"
-                  title="Go to Home Settlement Portal (/)"
+                  className="px-4 sm:px-5 py-2.5 bg-[#00C076] hover:bg-[#00a868] text-[#07090e] font-bold text-xs sm:text-sm rounded-xl transition-all shadow-lg shadow-[#00C076]/20 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <ArrowUpRight className="w-4 h-4" />
-                  <span>Settlement Portal (/)</span>
-                </button>
-
-                <button
-                  onClick={() => navigateTo('result')}
-                  className="px-4 py-2.5 bg-[#141b2c] hover:bg-[#1a253d] border border-cyan-500/30 text-cyan-300 font-medium text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  title="View Clearance Verification Results (/result)"
-                >
-                  <FileText className="w-4 h-4 text-cyan-400" />
-                  <span>Clearance Results (/result)</span>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Markets</span>
                 </button>
 
                 <button
@@ -939,19 +957,66 @@ export default function App() {
               </div>
             </div>
 
-            {/* Portfolio Summary Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 my-6 sm:my-8">
+            {/* Complete "home.html" Information and Design embedded on the Dashboard */}
+            <div className="my-6">
+              <HomeView
+                walletAddress={DEFAULT_USER.walletAddress}
+                availableBalance={DEFAULT_USER.availableBalance}
+                totalPortfolio={DEFAULT_USER.totalPortfolio}
+                todayPercentage={DEFAULT_USER.todayPercentage}
+                onGenerateResult={handleGenerateResult}
+                onViewLatestResult={() => navigateTo('result')}
+                hasExistingResult={latestSettlementPayload !== null}
+                onNavigate={(page) => navigateTo(page as Page)}
+              />
+            </div>
+
+            {/* Portfolio Summary Header with Download PDF Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-6 pb-2 border-t border-[#1a2336]">
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                  <span>Portfolio Summary</span>
+                  <span className="text-[11px] text-gray-400 font-normal">· Real-time Custodial Balances</span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Live on-chain valuation, available liquidity, and verified 24h performance
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-2 bg-[#121724] hover:bg-[#1a2336] text-gray-200 hover:text-white border border-[#202c42] hover:border-[#00C076]/50 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm group"
+                title="Download certified PDF statement of user portfolio and balances"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#00C076]" />
+                    <span>Generating PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="w-3.5 h-3.5 text-[#00C076] group-hover:scale-110 transition-transform" />
+                    <span>Download PDF Summary</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Portfolio Summary Card Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 my-4 sm:my-6">
               {/* Total Portfolio - Clickable to copy address */}
               <div
                 onClick={() => handleCopyAddress('total_portfolio')}
-                className="bg-gradient-to-br from-[#121624] via-[#0d1018] to-[#090b11] border border-[#1f283d] hover:border-[#0052FF]/70 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 cursor-pointer group shadow-xl shadow-black/40 hover:shadow-[#0052FF]/10"
+                className="bg-gradient-to-br from-[#121624] via-[#0d1018] to-[#090b11] border border-[#1f283d] hover:border-[#00C076]/70 rounded-2xl p-6 relative overflow-hidden transition-all duration-300 cursor-pointer group shadow-xl shadow-black/40 hover:shadow-[#00C076]/10"
                 title="Click portfolio balance to copy wallet address"
               >
-                <div className="absolute -top-10 -right-10 w-28 h-28 bg-[#0052FF]/10 rounded-full blur-2xl pointer-events-none group-hover:bg-[#0052FF]/20 transition-all"></div>
+                <div className="absolute -top-10 -right-10 w-28 h-28 bg-[#00C076]/10 rounded-full blur-2xl pointer-events-none group-hover:bg-[#00C076]/20 transition-all"></div>
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2 relative z-10">
                   <span className="text-gray-300">Total Portfolio</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-normal normal-case text-gray-400 group-hover:text-blue-400 flex items-center gap-1 transition-colors">
+                    <span className="text-[11px] font-normal normal-case text-gray-400 group-hover:text-[#00C076] flex items-center gap-1 transition-colors">
                       {recentCopiedTarget === 'total_portfolio' ? (
                         <>
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -964,13 +1029,13 @@ export default function App() {
                         </>
                       )}
                     </span>
-                    <Wallet className="w-4 h-4 text-[#0052FF] ml-1" />
+                    <Wallet className="w-4 h-4 text-[#00C076] ml-1" />
                   </div>
                 </div>
-                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight group-hover:text-blue-50 transition-colors relative z-10">
+                <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight group-hover:text-emerald-50 transition-colors relative z-10 font-mono">
                   {DEFAULT_USER.totalPortfolio}
                 </div>
-                <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 font-medium relative z-10">
+                <div className="mt-3 flex items-center gap-2 text-xs text-emerald-400 font-medium relative z-10 font-mono">
                   <TrendingUp className="w-3.5 h-3.5" />
                   <span>{DEFAULT_USER.todayPercentage} past 24 hours</span>
                 </div>
@@ -1026,86 +1091,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Assets Breakdown */}
-            <div className="bg-[#0e1119]/90 border border-[#1e2536] rounded-2xl overflow-hidden mb-8 shadow-xl shadow-black/40 backdrop-blur-md">
-              <div className="p-5 border-b border-[#1c1e24] flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-white text-base">Your Cryptographic Assets</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Asset distribution across integrated networks</p>
-                </div>
-                <span className="text-xs text-gray-400">4 Assets</span>
-              </div>
+            {/* Asset Allocation Donut Chart (Recharts) */}
+            <AssetAllocationDonutChart />
 
-              <div className="divide-y divide-[#1c1e24]">
-                {/* Ethereum */}
-                <div className="p-4 sm:p-5 flex items-center justify-between hover:bg-[#181a20] transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-[#627EEA]/15 border border-[#627EEA]/30 flex items-center justify-center font-bold text-[#627EEA]">
-                      Ξ
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">Ethereum</div>
-                      <div className="text-xs text-gray-400">14.82 ETH · $3,210.40</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white text-sm">$47,578.12</div>
-                    <div className="text-xs text-emerald-400">+2.4%</div>
-                  </div>
-                </div>
+            {/* 30-Day Institutional Total Portfolio Performance Chart (Recharts) */}
+            <PortfolioPerformanceChart />
 
-                {/* Bitcoin */}
-                <div className="p-4 sm:p-5 flex items-center justify-between hover:bg-[#181a20] transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-[#F7931A]/15 border border-[#F7931A]/30 flex items-center justify-center font-bold text-[#F7931A]">
-                      ₿
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">Bitcoin</div>
-                      <div className="text-xs text-gray-400">0.68 BTC · $66,150.00</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white text-sm">$44,982.00</div>
-                    <div className="text-xs text-emerald-400">+1.2%</div>
-                  </div>
-                </div>
-
-                {/* USD Coin */}
-                <div className="p-4 sm:p-5 flex items-center justify-between hover:bg-[#181a20] transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-[#2775CA]/15 border border-[#2775CA]/30 flex items-center justify-center font-bold text-[#2775CA]">
-                      $
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">USD Coin</div>
-                      <div className="text-xs text-gray-400">Stablecoin (1.00 USD)</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white text-sm">$12,940.67</div>
-                    <div className="text-xs text-gray-400">0.00%</div>
-                  </div>
-                </div>
-
-                {/* Solana */}
-                <div className="p-4 sm:p-5 flex items-center justify-between hover:bg-[#181a20] transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-full bg-[#14F195]/15 border border-[#14F195]/30 flex items-center justify-center font-bold text-[#14F195]">
-                      S
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white text-sm">Solana</div>
-                      <div className="text-xs text-gray-400">34.2 SOL · $161.08</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white text-sm">$5,509.00</div>
-                    <div className="text-xs text-emerald-400">+3.1%</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Interactive Searchable & Categorized Cryptographic Assets Section */}
+            <CryptographicAssetsSection />
 
             {/* Transaction History Component */}
             <TransactionHistory />
@@ -1230,7 +1223,7 @@ export default function App() {
             </div>
             <h3 className="text-lg font-bold text-white">Account Credentials Help</h3>
             <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              In this Crypto Trade Hub prototype, your authorized credentials for client-side validation are:
+              In this Zephyr Ledger platform, your authorized credentials for client-side validation are:
             </p>
             <div className="bg-[#0a0b0d] border border-[#23262f] rounded-lg p-3 my-4 space-y-1.5 text-xs">
               <div>
@@ -1402,48 +1395,61 @@ export default function App() {
         </div>
       )}
 
+      {/* Floating PDF Download Success Toast Notification */}
+      {pdfSuccessToast && (
+        <div className="fixed bottom-28 md:bottom-20 right-4 sm:right-6 z-50 flex items-center gap-3 bg-[#10141f] border border-[#00C076]/50 text-white px-3.5 py-3 rounded-2xl shadow-2xl shadow-[#00C076]/20 backdrop-blur-md animate-in fade-in slide-in-from-bottom-5 duration-200 max-w-[calc(100vw-2rem)] sm:max-w-sm">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#00C076]/20 text-[#00C076] flex items-center justify-center shrink-0 border border-[#00C076]/30">
+            <FileDown className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-white tracking-tight">Portfolio Summary Downloaded</span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#00C076]/15 text-[#00C076] border border-[#00C076]/20">
+                PDF
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-300 mt-0.5 truncate">
+              Zephyr_Ledger_Portfolio_Summary.pdf
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPdfSuccessToast(false)}
+            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#1c1e24] transition-colors cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <CheckCircle2 className="w-4 h-4 text-[#00C076]" />
+          </button>
+        </div>
+      )}
+
       {/* Mobile Bottom Navigation Dock (Native App Feel on Mobile Devices) */}
       {isAuthenticated && (
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#090c13]/95 backdrop-blur-xl border-t border-[#1b2230] px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-bottom">
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#090c13]/95 backdrop-blur-xl border-t border-[#1b2230] px-4 py-2 flex items-center justify-around shadow-2xl safe-area-bottom">
           <button
             type="button"
             onClick={() => navigateTo('home')}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
               currentPage === 'home'
-                ? 'text-[#0052FF]'
+                ? 'text-[#00C076]'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             <Home className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Home</span>
-            <span className="text-[8px] font-mono opacity-60">(/)</span>
+            <span className="text-[10px] font-semibold">Markets</span>
           </button>
 
           <button
             type="button"
             onClick={() => navigateTo('dashboard')}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
               currentPage === 'dashboard'
-                ? 'text-white'
+                ? 'text-[#00C076]'
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
             <LayoutDashboard className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Dashboard</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigateTo('result')}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer min-w-[52px] ${
-              currentPage === 'result'
-                ? 'text-cyan-400'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Zap className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] font-semibold">Result</span>
-            <span className="text-[8px] font-mono opacity-60">(/result)</span>
+            <span className="text-[10px] font-semibold">Portfolio</span>
           </button>
 
           <button
@@ -1477,17 +1483,31 @@ export default function App() {
       <footer className="border-t border-[#1b2230] bg-[#080a0f] py-6 px-4 text-center text-xs text-gray-500 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-xs shadow-emerald-400/50"></span>
-            <span className="text-gray-300 font-medium">Crypto Trade Hub Web Client</span>
+            <span className="w-2 h-2 rounded-full bg-[#00C076] shadow-xs shadow-[#00C076]/50"></span>
+            <span className="text-gray-300 font-medium">Zephyr Ledger Crypto Platform</span>
             <span>·</span>
-            <span className="text-gray-400">Institutional Security</span>
+            <span className="text-gray-400">SOC-2 & Cold Storage Protected</span>
           </div>
           <div className="flex items-center gap-4 text-gray-400">
+            <button
+              type="button"
+              onClick={() => navigateTo('dashboard')}
+              className="hover:text-gray-200 transition-colors cursor-pointer"
+            >
+              Settlement Ledger
+            </button>
+            <span>·</span>
             <span className="hover:text-gray-200 transition-colors cursor-pointer">Privacy Policy</span>
             <span>·</span>
             <span className="hover:text-gray-200 transition-colors cursor-pointer">Terms of Service</span>
             <span>·</span>
-            <span className="hover:text-gray-200 transition-colors cursor-pointer">Help Center</span>
+            <button
+              type="button"
+              onClick={() => setIsSupportModalOpen(true)}
+              className="hover:text-gray-200 transition-colors cursor-pointer"
+            >
+              Help Center
+            </button>
           </div>
         </div>
       </footer>
